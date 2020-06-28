@@ -203,9 +203,30 @@ using a flag that if non-zero tells forth to
                   (list ,v))))
 
   (defmacro forth-handle-found ()
-    `(forth-inner-interpreter))
+    `(if (and compiling
+              (not (forth-word-immediate word)))
+         (forth-compile-in (forth-word-thread word))
+         (progn
+           (setf pc (list (forth-word-thread word)))
+           (forth-inner-interpreter))))
 
-  (defmacro forth-handle-not-found ()))
+  (defmacro forth-handle-not-found ()
+    `(cond
+       ((and (consp v) (eq (car v) 'quote))
+        (if compiling
+            (forth-compile-in (cadr v))
+            (push (cadr v) pstack)))
+       ((and (consp v) (eq (car v) 'postpone))
+        (let ((word (forth-lookup (cadr v) dict)))
+          (if (not word)
+              (error "Postpone failed: ~a" (cadr v)))
+          (forth-compile-in (forth-word-thread word))))
+       ((symbolp v)
+        (error "Word ~a is not found" v))
+       (t
+        (if compiling
+            (forth-compile-in v)
+            (push v pstack))))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defparameter *new-forth* (new-forth-interpreter)))
