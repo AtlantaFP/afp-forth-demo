@@ -1,6 +1,7 @@
 (defpackage afp-forth-demo
   (:use :cl)
   (:export
+   #:*new-forth*
    #:*forth-registers*))
 
 (in-package :afp-forth-demo)
@@ -131,15 +132,7 @@ form (called cons-threaded code in the book).
 ;; 	     (forth-handle-found)
 ;; 	     (forth-handle-not-found))))))
 
-
-;; ;; clumsy way of using our forth interpreter (pre go-forth)
-;; ;; forth code : 3 dup * print
-;; (progn
-;;   (funcall *new-forth* 3)
-;;   (funcall *new-forth* 'dup)
-;;   (funcall *new-forth* '*)
-;;   (funcall *new-forth* 'print))
-
+;; recall once-only macro usage
 (defmacro square (x)
   (alexandria:once-only (x)
     `(* ,x ,x)))
@@ -188,8 +181,13 @@ form (called cons-threaded code in the book).
 #|
 Immediate mode is a mode in forth programming systems that deals with
 determining if a set of forth code is compiled or directly executed
-using a flag that if non-zero tells forth to
-|#
+using a flag.
+if zero, the interpreter is in regular interpreting or executing state
+if nonzero, the interperter is in compilation state which means that word is only executed if its an immediate word otherwise
+it is compiled.|#
+
+;; [interpreting words in forth]
+;; ] compiling words in forth [
 ;; these two primitives defines out to get in/out immediate mode
 (define-forth-primitive  [ t          ; <- t means immediate
   (setf compiling nil))
@@ -224,19 +222,123 @@ using a flag that if non-zero tells forth to
        ((symbolp v)
         (error "Word ~a is not found" v))
        (t
-        (if compiling
-            (forth-compile-in v)
-            (push v pstack))))))
+        (progn
+          (format t "unknown value found. if in compilation mode will compile otherwise will be pushed onto parameter stack.~%")
+          (if compiling
+              (forth-compile-in v)
+              (push v pstack)))))))
+
+;;
+;; creating more forth words for our dictionary to do stuff beyond simple math
+;;
+(define-forth-primitive create nil
+  (setf dict (make-forth-word :prev dict)))
+
+(define-forth-primitive name nil
+  (setf (forth-word-name dict) (pop pstack)))
+
+(define-forth-primitive immediate nil
+  (setf (forth-word-immediate dict) t))
+
+;; defining fetch(@) and store(!) for storing/retrieval from memory using cons cells
+(define-forth-primitive @ nil
+  (push (car (pop pstack))
+        pstack))
+
+(define-forth-primitive ! nil
+  (let ((location (pop pstack))
+        (curr-value (pop pstack)))
+    (setf (car location) curr-value)
+    (push location pstack)))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+ (defmacro forth-unary-word-definer (&rest words)
+   `(progn
+      ,@(mapcar
+         #`(define-forth-primitive ,a1 nil
+             (push (,a1 (pop pstack))
+                   pstack))
+         words))))
+
+;; grab a bunch of common lisp unary operations useful for forth programming
+(forth-unary-word-definer
+ not car cdr cadr caddr cadddr cadar oddp evenp)
+
+(named-readtables:in-readtable :standard)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defparameter *new-forth* (new-forth-interpreter)))
+;; add create to the standard library
+(forth-stdlib-add create
+  ] create ] [
+  '{ name)
 
-;; example from Ch. 8 LoL
-(go-forth *new-forth* 1 2.0 "three" 'four '(f i v e))
-(go-forth *new-forth*
-  3 dup * print)
+(forth-stdlib-add {
+  (postpone [) [
+  '} name immediate)
+;; clumsy way of using our forth interpreter (pre go-forth)
+;; forth code : 3 dup * print
+;; (progn
+;;   (funcall *new-forth* 3)
+;;   (funcall *new-forth* 'dup)
+;;   (funcall *new-forth* '*)
+;;   (funcall *new-forth* 'print))
 
-(pandoric-macros:with-pandoric (pstack) *new-forth*
-  pstack)
+;; ;; simple example of push stuff onto parameter stack
+;; (go-forth *new-forth* 1 2.0 "three" 'four '(f i v e))
 
-(named-readtables:in-readtable :standard)
+;; (pandoric-macros:with-pandoric (pstack) *new-forth*
+;;   pstack)
+
+;; ;; examples from book on running forth code in our interpreter
+;; ;;
+;; ;;
+;; (go-forth *new-forth*
+;;   3 dup * print)
+
+;; ;; example of go in and out of compilation mode use []
+;; (go-forth *new-forth*
+;;   create)
+;; (go-forth *new-forth*
+;;   ] dup * [)
+;; ;; label previous code that we put in compilation mode to square (defining a function)
+;; (go-forth *new-forth*
+;;   'square name)
+;; ;; use function
+;; (go-forth *new-forth*
+;;   3 square print)
+
+;; #|
+;; above code creates a way of defining functions without using forth's backward balanced
+;; brackets we introduced earlier. below is an example
+;; |#
+;; (setf *new-forth* (new-forth-interpreter))
+
+;; ;; equivalent to
+;; ;; (defun square (x) (* x x))
+;; (go-forth *new-forth*
+;;    { dup * } 'square name)
+
+;; (go-forth *new-forth*
+;;   5 square print)
+
+;; (go-forth *new-forth*
+;;   { dup + } 'double name)
+
+;; (go-forth *new-forth*
+;;   5 double square print)
+
+;; (go-forth *new-forth*
+;;   1/2 square print)
+
+;; (go-forth *new-forth*
+;;   { 3 } 'three name
+;;   three three * print)
+
+;; (go-forth *new-forth*
+;;   { 4.0 } '4 name
+;;   4 4 * print)
+
+;; (setf *new-forth* (new-forth-interpreter))
+;; (go-forth *new-forth*
+;;   1 '(nil) ! dup @)
