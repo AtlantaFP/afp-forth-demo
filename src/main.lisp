@@ -87,19 +87,6 @@ form (called cons-threaded code in the book).
 ;; NOP - no operation
 (define-forth-primitive nop nil)
 
-(define-forth-primitive * nil
-  (push (* (pop pstack) (pop pstack)) pstack))
-
-(define-forth-primitive + nil
-  (push (+ (pop pstack) (pop pstack)) pstack))
-
-;; a b - => b - a
-(define-forth-primitive - nil
-  (push (- (pop pstack) (pop pstack)) pstack))
-
-(define-forth-primitive / nil
-  (push (/ (pop pstack) (pop pstack)) pstack))
-
 ;; dup - duplicate argument on pstack
 (define-forth-primitive dup nil
   (push (car pstack) pstack))
@@ -120,6 +107,24 @@ form (called cons-threaded code in the book).
 ;; drop nil
 (define-forth-primitive drop nil
   (pop pstack))
+
+#|
+basic arithmetic operations (currently defined using forth-binary-word-definer)
+See if you can redefine these in a different dictionary.
+|#
+;; (define-forth-primitive * nil
+;;   (push (* (pop pstack) (pop pstack)) pstack))
+
+;; (define-forth-primitive + nil
+;;   (push (+ (pop pstack) (pop pstack)) pstack))
+
+;; ;; a b - => b - a
+;; (define-forth-primitive - nil
+;;   (push (- (pop pstack) (pop pstack)) pstack))
+
+;; (define-forth-primitive / nil
+;;   (push (/ (pop pstack) (pop pstack)) pstack))
+
 
 ;; sketch of forth interpreter that will load up initial dictionary and start
 ;; looking through passed in
@@ -223,7 +228,6 @@ it is compiled.|#
         (error "Word ~a is not found" v))
        (t
         (progn
-          (format t "unknown value found. if in compilation mode will compile otherwise will be pushed onto parameter stack.~%")
           (if compiling
               (forth-compile-in v)
               (push v pstack)))))))
@@ -260,11 +264,25 @@ it is compiled.|#
                    pstack))
          words))))
 
+(defmacro forth-binary-word-definer (&rest words)
+  (alexandria:with-gensyms (top)
+    `(progn
+       ,@(mapcar
+          #`(define-forth-primitive ,a1 nil
+              (let ((,top (pop pstack)))
+                (push (,a1 (pop pstack)
+                           ,top)
+                      pstack)))
+       words))))
+
 ;; grab a bunch of common lisp unary operations useful for forth programming
 (forth-unary-word-definer
  not car cdr cadr caddr cadddr cadar oddp evenp)
 
-(named-readtables:in-readtable :standard)
+(forth-binary-word-definer
+ eq equal + - / = < > <= >= max min and or)
+
+;;(named-readtables:in-readtable :standard)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defparameter *new-forth* (new-forth-interpreter)))
@@ -276,6 +294,44 @@ it is compiled.|#
 (forth-stdlib-add {
   (postpone [) [
   '} name immediate)
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (def-forth-naked-prim branch-if nil
+    (setf pc (if (pop pstack)
+                 (cadr pc)
+                 (cddr pc))))
+
+  (def-forth-naked-prim forth-compile nil
+    (setf (forth-word-thread dict)
+          (nconc (forth-word-thread dict)
+                 (list (cadr pc))))
+    (setf pc (cddr pc)))
+
+  (def-forth-naked-prim here nil
+    (push (last (forth-word-thread dict))
+          pstack)))
+
+(forth-stdlib-add
+  { r> drop } 'exit name)
+
+(forth-stdlib-add
+  {
+  forth-compile not
+  forth-compile branch-if
+  forth-compile nop
+  here } 'if name immediate)
+
+(forth-stdlib-add
+  {
+  forth-compile nop
+  here swap ! car } 'then name immediate)
+
+(forth-stdlib-add
+  { 0 swap - } 'negate name)
+
+;; (forth-stdlib-add
+;;   { dup 0 < if negate then } 'abs name)
+
 ;; clumsy way of using our forth interpreter (pre go-forth)
 ;; forth code : 3 dup * print
 ;; (progn
@@ -314,8 +370,8 @@ it is compiled.|#
 ;; |#
 ;; (setf *new-forth* (new-forth-interpreter))
 
-;; ;; equivalent to
-;; ;; (defun square (x) (* x x))
+;; equivalent to
+;; (defun square (x) (* x x))
 ;; (go-forth *new-forth*
 ;;    { dup * } 'square name)
 
@@ -342,3 +398,28 @@ it is compiled.|#
 ;; (setf *new-forth* (new-forth-interpreter))
 ;; (go-forth *new-forth*
 ;;   1 '(nil) ! dup @)
+
+;; (go-forth *new-forth*
+;;  { square square } 'quartic name)
+
+;; (go-forth (setf *new-forth* (new-forth-interpreter))
+;;   { 2 * } 'double name
+;;   { branch-if double "Not doubling" print } 'if-then-double name)
+
+;; (go-forth *new-forth*
+;;   4 'nil if-then-double print)
+
+;; (go-forth *new-forth*
+;;   4 't if-then-double print)
+
+;; (go-forth *new-forth*
+;;   { "exiting..." print
+;;   exit
+;;   "exited" print                        ; this will never get executed
+;;   } 'exit-test name
+;;   exit-test)
+
+;;(go-forth *new-forth* 4 5 < if "hello" print then )
+;;(go-forth *new-forth* 4 5 < if "hello" print then)
+;; (setf *new-forth* (new-forth-interpreter))
+;; (go-forth *new-forth* 4 5 < if print)
