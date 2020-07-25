@@ -57,16 +57,20 @@ form (called cons-threaded code in the book).
   (defmacro forth-inner-interpreter ()
     "simple interpreter for forth"
     `(loop
-       :do (cond
-             ((functionp (car pc)) (funcall (car pc)))
-             ((consp (car pc))
-              (push (cdr pc) rstack)
-              (setf pc (car pc)))
-             ((null pc)
-              (setf pc (pop rstack)))
-             (t
-              (push (car pc) pstack)
-              (setf pc (cdr pc))))
+       :do (progn
+             (format t "Program Counter (PC): ~A~%" pc)
+             (format t "rstack: ~A~%" rstack)
+             (format t "pstack: ~A~%" pstack)
+             (cond
+               ((functionp (car pc)) (funcall (car pc)))
+               ((consp (car pc))
+                (push (cdr pc) rstack)
+                (setf pc (car pc)))
+               ((null pc)
+                (setf pc (pop rstack)))
+               (t
+                (push (car pc) pstack)
+                (setf pc (cdr pc)))))
        :until (and (null pc) (null rstack)))))
 
 ;; dictionary of primitives forms
@@ -108,35 +112,6 @@ form (called cons-threaded code in the book).
 (define-forth-primitive drop nil
   (pop pstack))
 
-#|
-basic arithmetic operations (currently defined using forth-binary-word-definer)
-See if you can redefine these in a different dictionary.
-|#
-;; (define-forth-primitive * nil
-;;   (push (* (pop pstack) (pop pstack)) pstack))
-
-;; (define-forth-primitive + nil
-;;   (push (+ (pop pstack) (pop pstack)) pstack))
-
-;; ;; a b - => b - a
-;; (define-forth-primitive - nil
-;;   (push (- (pop pstack) (pop pstack)) pstack))
-
-;; (define-forth-primitive / nil
-;;   (push (/ (pop pstack) (pop pstack)) pstack))
-
-
-;; sketch of forth interpreter that will load up initial dictionary and start
-;; looking through passed in
-;; (defmacro new-forth-interpreter ()
-;;   `(let ,forth-registers
-;;      (forth-install-primitives)
-;;      (lambda (v)
-;;        (let ((word (forth-lookup v dict)))
-;; 	 (if word
-;; 	     (forth-handle-found)
-;; 	     (forth-handle-not-found))))))
-
 ;; recall once-only macro usage
 (defmacro square (x)
   (alexandria:once-only (x)
@@ -152,7 +127,7 @@ See if you can redefine these in a different dictionary.
 
 ;; variable representing our standard library
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *forth-stdlib* '()))
+  (defparameter *forth-stdlib* '()))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defmacro forth-stdlib-add (&body all)
@@ -228,6 +203,10 @@ it is compiled.|#
         (error "Word ~a is not found" v))
        (t
         (progn
+          (format t "Pushing ~A onto pstack~%" v)
+          (format t "Program Counter (PC): ~A~%" pc)
+          (format t "rstack: ~A~%" rstack)
+          (format t "pstack: ~A~%" pstack)
           (if compiling
               (forth-compile-in v)
               (push v pstack)))))))
@@ -250,10 +229,8 @@ it is compiled.|#
         pstack))
 
 (define-forth-primitive ! nil
-  (let ((location (pop pstack))
-        (curr-value (pop pstack)))
-    (setf (car location) curr-value)
-    (push location pstack)))
+  (let ((location (pop pstack)))
+    (setf (car location) (pop pstack))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
  (defmacro forth-unary-word-definer (&rest words)
@@ -280,9 +257,7 @@ it is compiled.|#
  not car cdr cadr caddr cadddr cadar oddp evenp)
 
 (forth-binary-word-definer
- eq equal + - / = < > <= >= max min and or)
-
-;;(named-readtables:in-readtable :standard)
+ eq equal + - * / = < > <= >= max min and or)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defparameter *new-forth* (new-forth-interpreter)))
@@ -301,7 +276,7 @@ it is compiled.|#
                  (cadr pc)
                  (cddr pc))))
 
-  (def-forth-naked-prim forth-compile nil
+  (def-forth-naked-prim compile nil
     (setf (forth-word-thread dict)
           (nconc (forth-word-thread dict)
                  (list (cadr pc))))
@@ -316,21 +291,21 @@ it is compiled.|#
 
 (forth-stdlib-add
   {
-  forth-compile not
-  forth-compile branch-if
-  forth-compile nop
-  here } 'if name immediate)
+  compile not
+  compile branch-if
+  compile nop
+  here
+  } 'if name immediate)
 
 (forth-stdlib-add
-  {
-  forth-compile nop
-  here swap ! car } 'then name immediate)
+  { compile nop
+  here swap ! } 'then name immediate)
 
 (forth-stdlib-add
   { 0 swap - } 'negate name)
 
-;; (forth-stdlib-add
-;;   { dup 0 < if negate then } 'abs name)
+(forth-stdlib-add
+  { dup 0 < if negate then } 'abs name)
 
 ;; clumsy way of using our forth interpreter (pre go-forth)
 ;; forth code : 3 dup * print
@@ -395,22 +370,26 @@ it is compiled.|#
 ;;   { 4.0 } '4 name
 ;;   4 4 * print)
 
-;; (setf *new-forth* (new-forth-interpreter))
-;; (go-forth *new-forth*
-;;   1 '(nil) ! dup @)
+(setf *new-forth* (new-forth-interpreter))
+(go-forth *new-forth*
+  1 '(nil) ! @ print)
 
 ;; (go-forth *new-forth*
 ;;  { square square } 'quartic name)
 
-;; (go-forth (setf *new-forth* (new-forth-interpreter))
-;;   { 2 * } 'double name
-;;   { branch-if double "Not doubling" print } 'if-then-double name)
+(forth-stdlib-add
+  { compile branch-if } 'compiled-branch-if name immediate)
 
-;; (go-forth *new-forth*
-;;   4 'nil if-then-double print)
+(go-forth (setf *new-forth* (new-forth-interpreter))
+  { 2 * } 'double name
+  { compiled-branch-if double "Not doubling" print } 'if-then-double name)
 
-;; (go-forth *new-forth*
-;;   4 't if-then-double print)
+(go-forth *new-forth*
+  4 'nil if-then-double print)
+
+(go-forth *new-forth*
+
+  4 't if-then-double print)
 
 ;; (go-forth *new-forth*
 ;;   { "exiting..." print
@@ -419,7 +398,14 @@ it is compiled.|#
 ;;   } 'exit-test name
 ;;   exit-test)
 
-;;(go-forth *new-forth* 4 5 < if "hello" print then )
-;;(go-forth *new-forth* 4 5 < if "hello" print then)
-;; (setf *new-forth* (new-forth-interpreter))
-;; (go-forth *new-forth* 4 5 < if print)
+
+(setf *new-forth* (new-forth-interpreter))
+(go-forth *new-forth* drop)
+(go-forth *new-forth* 4 5 > if "hello" print then )
+(go-forth *new-forth* -5 )
+(go-forth *new-forth* abs )
+
+(go-forth *new-forth* 5 '(nil) ! )
+(go-forth *new-forth* @ print)
+
+(go-forth *new-forth* -5 negate print)
