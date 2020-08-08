@@ -7,8 +7,6 @@
 (in-package :afp-forth-demo)
 
 (named-readtables:in-readtable :reader-macros)
-(defparameter *logging-turned-on* 't)
-(defparameter *logging-forth-word-generation* nil)
 
 #|
 registers on the forth machine
@@ -19,6 +17,9 @@ registers on the forth machine
 - dtable :
 |#
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter *logging-turned-on* nil)
+  (defparameter *logging-forth-word-generation* nil)
+
   (defvar *forth-registers*
     '(pstack rstack pc dict compiling dtable))
 
@@ -38,7 +39,7 @@ registers on the forth machine
   - Take advantage of Lisp's dynamic typing and cons cell list structure to access the next execution
   form (called cons-threaded code in the book).
   defines:
-    - forth-word-name, forth-word-prev, forth-word-immediate, forth-word-thread
+  - forth-word-name, forth-word-prev, forth-word-immediate, forth-word-thread
   |#
   (defstruct forth-word
     name
@@ -62,11 +63,11 @@ registers on the forth machine
     `(loop
        :do (progn
              (when *logging-turned-on*
-              (format t "Environment Info~%")
-              (format t "----------------~%")
-              (format t "Program Counter: ~A~%" pc)
-              (format t "rstack: ~A~%" rstack)
-              (format t "pstack: ~A~%" pstack))
+               (format t "Environment Info~%")
+               (format t "----------------~%")
+               (format t "Program Counter: ~A~%" pc)
+               (format t "rstack: ~A~%" rstack)
+               (format t "pstack: ~A~%" pstack))
              (cond
                ((functionp (car pc))
                 (progn
@@ -216,7 +217,7 @@ registers on the forth machine
                 (not (forth-word-immediate word)))
            (progn
              (when *logging-turned-on*
-              (format t "compiling ~A...~%" (forth-word-name word)))
+               (format t "compiling ~A...~%" (forth-word-name word)))
              (forth-compile-in (forth-word-thread word)))
            (progn
              (when *logging-turned-on*
@@ -234,24 +235,24 @@ registers on the forth machine
          (format t "rstack: ~A~%" rstack)
          (format t "pstack: ~A~%" pstack))
        (cond
-        ((and (consp v) (eq (car v) 'quote))
-         (if compiling
-             (forth-compile-in (cadr v))
-             (push (cadr v) pstack)))
-        ((and (consp v) (eq (car v) 'postpone))
-         (let ((word (forth-lookup (cadr v) dict)))
-           (if (not word)
-               (error "Postpone failed: ~a" (cadr v)))
-           (forth-compile-in (forth-word-thread word))))
-        ((symbolp v)
-         (error "Word ~a is not found" v))
-        (t
-         (if compiling
-             (forth-compile-in v)
-             (progn
-               (when *logging-turned-on*
-                 (format t "pushing ~A onto pstack~%" v))
-               (push v pstack)))))))
+         ((and (consp v) (eq (car v) 'quote))
+          (if compiling
+              (forth-compile-in (cadr v))
+              (push (cadr v) pstack)))
+         ((and (consp v) (eq (car v) 'postpone))
+          (let ((word (forth-lookup (cadr v) dict)))
+            (if (not word)
+                (error "Postpone failed: ~a" (cadr v)))
+            (forth-compile-in (forth-word-thread word))))
+         ((symbolp v)
+          (error "Word ~a is not found" v))
+         (t
+          (if compiling
+              (forth-compile-in v)
+              (progn
+                (when *logging-turned-on*
+                  (format t "pushing ~A onto pstack~%" v))
+                (push v pstack)))))))
 
   ;;
   ;; creating more forth words for our dictionary to do stuff beyond simple math
@@ -328,6 +329,11 @@ registers on the forth machine
     (push (last (forth-word-thread dict))
           pstack))
 
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;
+  ;; words for metaprogramming in forth
+  ;;
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (forth-stdlib-add
     { compile not
     compile branch-if
@@ -339,54 +345,70 @@ registers on the forth machine
     here swap ! } 'then name immediate)
 
   (forth-stdlib-add
+    { compile 't
+    compile branch-if
+    compile nop
+    here swap
+    compile nop
+    here swap ! } 'else name immediate)
+
+
+  (forth-stdlib-add
     { 0 swap - } 'negate name)
 
   (forth-stdlib-add
     { dup 0 < if negate then } 'abs name)
-)
+
+  (forth-stdlib-add
+    { evenp if 0 else 1 then } 'mod2 name)
+
+  (defparameter *new-forth* (new-forth-interpreter)))
 
 ;; clumsy way of using our forth interpreter (pre go-forth)
 ;; forth code : 3 dup * print
-;; (progn
-;;   (funcall *new-forth* 3)
-;;   (funcall *new-forth* 'dup)
-;;   (funcall *new-forth* '*)
-;;   (funcall *new-forth* 'print))
+(progn
+  (funcall *new-forth* 3)
+  (funcall *new-forth* 'dup)
+  (funcall *new-forth* '*)
+  (funcall *new-forth* 'print))
 
-;; ;; simple example of push stuff onto parameter stack
-;; (go-forth *new-forth* 1 2.0 "three" 'four '(f i v e))
+;; simple example of push stuff onto parameter stack
+(go-forth *new-forth* 1 2.0 "three" 'four '(f i v e))
 
-;; (pandoric-macros:with-pandoric (pstack) *new-forth*
-;;   pstack)
+(pandoric-macros:with-pandoric (pstack) *new-forth*
+  pstack)
 
-;; ;; examples from book on running forth code in our interpreter
-;; ;;
-;; ;;
-;; (go-forth *new-forth*
-;;   3 dup * print)
+;; examples from book on running forth code in our interpreter
+;;
+;;
+(go-forth *new-forth*
+  3 dup * print)
 
-;; ;; example of go in and out of compilation mode use []
-;; (go-forth *new-forth*
-;;   create)
-;; (go-forth *new-forth*
-;;   ] dup * [)
-;; ;; label previous code that we put in compilation mode to square (defining a function)
+;; example of go in and out of compilation mode use []
+(go-forth *new-forth*
+  create)
+(go-forth *new-forth*
+  ] dup * [)
+
+#|
+above code creates a way of defining functions without using forth's backward balanced
+brackets we introduced earlier. below is an example
+|#
+(setf *new-forth* (new-forth-interpreter))
+
+;;equivalent to
+(defun square (x) (* x x))
+(go-forth *new-forth*
+   { dup * } 'square name)
+(go-forth *new-forth*
+ { square square } 'quartic name)
+
+;; label previous code that we put in compilation mode to square (defining a function)
 ;; (go-forth *new-forth*
 ;;   'square name)
 ;; ;; use function
 ;; (go-forth *new-forth*
 ;;   3 square print)
-
-;; #|
-;; above code creates a way of defining functions without using forth's backward balanced
-;; brackets we introduced earlier. below is an example
-;; |#
-;; (setf *new-forth* (new-forth-interpreter))
-
-;; equivalent to
-;; (defun square (x) (* x x))
-;; (go-forth *new-forth*
-;;    { dup * } 'square name)
 
 ;; (go-forth *new-forth*
 ;;   5 square print)
@@ -400,71 +422,69 @@ registers on the forth machine
 ;; (go-forth *new-forth*
 ;;   1/2 square print)
 
-;; (go-forth *new-forth*
-;;   { 3 } 'three name
-;;   three three * print)
+(go-forth *new-forth*
+  { 3 } 'three name
+  three three * print)
 
-;; (go-forth *new-forth*
-;;   { 4.0 } '4 name
-;;   4 4 * print)
+(go-forth *new-forth*
+  { 4.0 } '4 name
+  4 4 * print)
 
-;; (setf *new-forth* (new-forth-interpreter))
-;; (go-forth *new-forth*
-;;   1 '(nil) ! @ print)
-
-;; (go-forth *new-forth*
-;;  { square square } 'quartic name)
-
-;; (forth-stdlib-add
-;;   { compile branch-if } 'compiled-branch-if name immediate)
-
-;; (go-forth (setf *new-forth* (new-forth-interpreter))
-;;   { 2 * } 'double name
-;;   { branch-if double "Not doubling" print } 'if-then-double name)
-
-;; (go-forth *new-forth*
-;;   4 'nil if-then-double print)
-
-;; (go-forth *new-forth*
-;;   4 't if-then-double print)
-
-;; (go-forth *new-forth*
-;;   { "exiting..." print
-;;   exit
-;;   "exited" print                        ; this will never get executed
-;;   } 'exit-test name
-;;   exit-test)
+(setf *new-forth* (new-forth-interpreter))
+(go-forth *new-forth*
+  1 '(nil) ! @ print)
 
 
-;; (go-forth *new-forth* 5 '(nil) ! )
-;; (go-forth *new-forth* @ print)
+(forth-stdlib-add
+  { compile branch-if } 'compiled-branch-if name immediate)
 
-;; (go-forth *new-forth* -5 negate print)
+(go-forth (setf *new-forth* (new-forth-interpreter))
+  { 2 * } 'double name
+  { branch-if double "Not doubling" print } 'if-then-double name)
 
-;; (step (go-forth (setf *new-forth* (new-forth-interpreter))
-;;    { dup 0 < if negate then } 'abs name))
+(go-forth *new-forth*
+  4 'nil if-then-double print)
 
-(setf *logging-turned-on* 't)
+(go-forth *new-forth*
+  4 't if-then-double print)
 
-(defparameter *new-forth* (new-forth-interpreter))
+(go-forth *new-forth*
+  { "exiting..." print
+  exit
+  "exited" print                        ; this will never get executed
+  } 'exit-test name
+  exit-test)
+
+
+(go-forth *new-forth* 5 '(nil) ! )
+(go-forth *new-forth* @ print)
+
+(go-forth *new-forth* -5 negate print)
+
+(go-forth (setf *new-forth* (new-forth-interpreter))
+  { dup 0 < if negate then } 'abs name)
+
+(setf *logging-turned-on* nil)
+
 (go-forth *new-forth*
   { "hello" print } 'printhello name)
+(go-forth *new-forth*
+  { if "yes" print then } 'check-condition name)
 
+(go-forth *new-forth* 4 5 < check-condition)
+(go-forth *new-forth* 4 5 > check-condition)
 (go-forth *new-forth* "hello" print)
 (go-forth *new-forth* printhello )
+;; (go-forth *new-forth* 4 5 < if "hello" print then )
 
-(go-forth *new-forth*
-  4 5 < not branch-if nop here printhello nop here swap !)
-(go-forth *new-forth*
-  4 5 < if printhello then )
+(go-forth *new-forth* -5 abs print)
+(go-forth *new-forth* 5 abs print)
 
-(go-forth *new-forth*
-  4 5 > not branch-if nop here printhello nop here swap !)
 ;; above compiles to
 ;; (go-forth *new-forth*
 ;;   { branch-if "yes" "no" print } 'check-condition name immediate)
 
-(go-forth *new-forth* -5 abs print)
+;; (go-forth *new-forth* -5 abs print)
 
 ;; call this for debugging
 
