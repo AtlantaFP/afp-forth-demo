@@ -7,7 +7,7 @@
 (in-package :afp-forth-demo)
 
 (named-readtables:in-readtable :reader-macros)
-(defparameter *logging-turned-on* nil)
+(defparameter *logging-turned-on* 't)
 (defparameter *logging-forth-word-generation* nil)
 
 #|
@@ -37,6 +37,8 @@ registers on the forth machine
   - accessing a fixnum that representing a pointer to the word in the same compilation thread (token threading)
   - Take advantage of Lisp's dynamic typing and cons cell list structure to access the next execution
   form (called cons-threaded code in the book).
+  defines:
+    - forth-word-name, forth-word-prev, forth-word-immediate, forth-word-thread
   |#
   (defstruct forth-word
     name
@@ -442,21 +444,33 @@ registers on the forth machine
 ;; (step (go-forth (setf *new-forth* (new-forth-interpreter))
 ;;    { dup 0 < if negate then } 'abs name))
 
-(setf *logging-turned-on* nil)
+(setf *logging-turned-on* 't)
 
 (defparameter *new-forth* (new-forth-interpreter))
-(go-forth *new-forth* 4 5 < if "hello" print then )
-
-;; above compiles to
 (go-forth *new-forth*
-  { branch-if "yes" "no" print } 'check-condition name immediate)
+  { "hello" print } 'printhello name)
+
+(go-forth *new-forth* "hello" print)
+(go-forth *new-forth* printhello )
+
+(go-forth *new-forth*
+  4 5 < not branch-if nop here printhello nop here swap !)
+(go-forth *new-forth*
+  4 5 < if printhello then )
+
+(go-forth *new-forth*
+  4 5 > not branch-if nop here printhello nop here swap !)
+;; above compiles to
+;; (go-forth *new-forth*
+;;   { branch-if "yes" "no" print } 'check-condition name immediate)
 
 (go-forth *new-forth* -5 abs print)
 
 ;; call this for debugging
 
-(pandoric-macros:with-pandoric (pstack) *new-forth*
-  (print pstack))
+(pandoric-macros:with-pandoric (pstack rstack) *new-forth*
+  (format t "pstack:~A~%rstack:~A~%" pstack rstack))
+
 
 (go-forth *new-forth*
   { dup * } 'square name

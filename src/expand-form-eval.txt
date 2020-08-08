@@ -1,0 +1,224 @@
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: NIL
+pushing 4 onto pstack
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: (4)
+pushing 5 onto pstack
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: (5 4)
+setting up < to be interpreted...
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {10059593BB}>)
+rstack: NIL
+pstack: (5 4)
+calling function
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: (T)
+setting up NOT to be interpreted...
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {1005959F7B}>)
+rstack: NIL
+pstack: (T)
+calling function
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: (NIL)
+setting up BRANCH-IF to be interpreted...
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595913B}>)
+rstack: NIL
+pstack: (NIL)
+calling function
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: NIL
+setting up NOP to be interpreted...
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A96B}>)
+rstack: NIL
+pstack: NIL
+calling function
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: NIL
+setting up HERE to be interpreted...
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595908B}>)
+rstack: NIL
+pstack: NIL
+calling function
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+setting up PRINTHELLO to be interpreted...
+Environment Info
+----------------
+Program Counter: ((hello
+                   #<CLOSURE (LAMBDA ()
+                               :IN "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+executing code block. pushing onto rstack...
+Environment Info
+----------------
+Program Counter: (hello
+                  #<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100518A87B}>
+                  #<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {1005189F7B}>
+                  #<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100518913B}>
+                  #<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100518A96B}>)
+rstack: (NIL)
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+setting up program counter
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>)
+rstack: (NIL)
+pstack: (hello
+         (#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+calling function
+
+"hello" Environment Info
+----------------
+Program Counter: NIL
+rstack: (NIL)
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+returning from function call
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+setting up NOP to be interpreted...
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A96B}>)
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+calling function
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+setting up HERE to be interpreted...
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595908B}>)
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+calling function
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>)
+         (#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+setting up SWAP to be interpreted...
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A8CB}>)
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>)
+         (#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+calling function
+Environment Info
+----------------
+Program Counter: NIL
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>)
+         (#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+setting up ! to be interpreted...
+Environment Info
+----------------
+Program Counter: (#<CLOSURE (LAMBDA ()
+                              :IN
+                              "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {1005959FCB}>)
+rstack: NIL
+pstack: ((#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>)
+         (#<CLOSURE (LAMBDA ()
+                      :IN
+                      "/Users/vedam/.roswell/local-projects/afp-forth-demo/src/main.lisp") {100595A87B}>))
+calling function
