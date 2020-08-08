@@ -65,8 +65,8 @@ registers on the forth machine
              (when *logging-turned-on*
                (format t "Environment Info~%")
                (format t "----------------~%")
-               (format t "Program Counter: ~A~%" pc)
-               (format t "rstack: ~A~%" rstack)
+               ;;(format t "Program Counter: ~A~%" pc)
+               ;;(format t "rstack: ~A~%" rstack)
                (format t "pstack: ~A~%" pstack))
              (cond
                ((functionp (car pc))
@@ -210,8 +210,8 @@ registers on the forth machine
        (when *logging-turned-on*
          (format t "Environment Info~%")
          (format t "----------------~%")
-         (format t "Program Counter: ~A~%" pc)
-         (format t "rstack: ~A~%" rstack)
+         ;;(format t "Program Counter: ~A~%" pc)
+         ;;(format t "rstack: ~A~%" rstack)
          (format t "pstack: ~A~%" pstack))
        (if (and compiling
                 (not (forth-word-immediate word)))
@@ -352,6 +352,14 @@ registers on the forth machine
     compile nop
     here swap ! } 'else name immediate)
 
+  (forth-stdlib-add
+    { compile nop
+    here } 'begin name immediate
+    { compile 't
+    compile branch-if
+    compile nop
+    here ! } 'again name immediate)
+
 
   (forth-stdlib-add
     { 0 swap - } 'negate name)
@@ -397,7 +405,6 @@ brackets we introduced earlier. below is an example
 (setf *new-forth* (new-forth-interpreter))
 
 ;;equivalent to
-(defun square (x) (* x x))
 (go-forth *new-forth*
    { dup * } 'square name)
 (go-forth *new-forth*
@@ -480,6 +487,37 @@ brackets we introduced earlier. below is an example
 (go-forth *new-forth* -5 abs print)
 (go-forth *new-forth* 5 abs print)
 
+;; usages of mod2
+(go-forth *new-forth* 4 mod2 print)
+(go-forth *new-forth* 1 mod2 print)
+
+;; example of begin example
+(go-forth *new-forth*
+  { begin
+  dup 1 < if drop exit then
+  dup print
+  1 -
+  again } 'countdown name)
+(go-forth *new-forth*
+  5 countdown)
+
+(go-forth *new-forth*
+  1 countdown)
+
+;; example of swapping pointers made by begin and if so that
+;; again and then are run out of order
+(go-forth *new-forth*
+  { begin
+  dup 1 >= if
+  dup print
+  1 -
+  [ swap ]
+  again
+  then
+  drop } 'countdown-for-teh-hax0rz name)
+
+(go-forth *new-forth* 5 countdown-for-teh-hax0rz)
+
 ;; above compiles to
 ;; (go-forth *new-forth*
 ;;   { branch-if "yes" "no" print } 'check-condition name immediate)
@@ -489,8 +527,10 @@ brackets we introduced earlier. below is an example
 ;; call this for debugging
 
 (pandoric-macros:with-pandoric (pstack rstack) *new-forth*
-  (format t "pstack:~A~%rstack:~A~%" pstack rstack))
+  (format t "~%pstack:~A~%rstack:~A~%" pstack rstack))
 
+(pandoric-macros:with-pandoric (dict) *new-forth*
+  (print (forth-lookup 'again dict)))
 
 (go-forth *new-forth*
   { dup * } 'square name
