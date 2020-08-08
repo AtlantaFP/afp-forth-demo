@@ -7,7 +7,8 @@
 (in-package :afp-forth-demo)
 
 (named-readtables:in-readtable :reader-macros)
-(defparameter *logging-turned-on* 't)
+(defparameter *logging-turned-on* nil)
+(defparameter *logging-forth-word-generation* nil)
 
 #|
 registers on the forth machine
@@ -93,11 +94,11 @@ registers on the forth machine
   (defparameter *forth-primitive-forms* nil)
 
   ;;
-  (defmacro def-forth-naked-prim (&body code)
+  (defmacro define-forth-naked-primitive (&body code)
     `(push ',code *forth-primitive-forms*))
 
   (defmacro define-forth-primitive (&body code)
-    `(def-forth-naked-prim
+    `(define-forth-naked-primitive
        ,@code
        (setf pc (cdr pc))))
 
@@ -166,6 +167,12 @@ registers on the forth machine
   (defmacro forth-install-primitives ()
     `(progn
        ,@(mapcar #`(let ((thread (lambda () ,@(cddr a1))))
+                     (when *logging-forth-word-generation*
+                       (format t "Forth word Info~%")
+                       (format t "---------------~%")
+                       (format t "Name: ~A~%" ',(car a1))
+                       (format t "Immediate: ~A~%" ,(cadr a1))
+                       (format t "----------------~%"))
                      (setf dict (make-forth-word
                                  :name ',(car a1)
                                  :prev dict
@@ -256,6 +263,7 @@ registers on the forth machine
   (define-forth-primitive immediate nil
     (setf (forth-word-immediate dict) t))
 
+
   ;; defining fetch(@) and store(!) for storing/retrieval from memory using cons cells
   (define-forth-primitive @ nil
     (push (car (pop pstack))
@@ -300,7 +308,7 @@ registers on the forth machine
     (postpone [) [
     '} name immediate)
 
-  (def-forth-naked-prim branch-if nil
+  (define-forth-naked-primitive branch-if nil
     (setf pc (if (pop pstack)
                  (cadr pc)
                  (cddr pc))))
@@ -308,23 +316,21 @@ registers on the forth machine
   (forth-stdlib-add
     { r> drop } 'exit name)
 
-  (def-forth-naked-prim compile nil
+  (define-forth-naked-primitive compile nil
     (setf (forth-word-thread dict)
           (nconc (forth-word-thread dict)
                  (list (cadr pc)))
           pc (cddr pc)))
 
-  (def-forth-naked-prim here nil
+  (define-forth-primitive here nil
     (push (last (forth-word-thread dict))
           pstack))
-
 
   (forth-stdlib-add
     { compile not
     compile branch-if
     compile nop
-    here
-    } 'if name immediate)
+    here } 'if name immediate)
 
   (forth-stdlib-add
     { compile nop
@@ -332,6 +338,7 @@ registers on the forth machine
 
   (forth-stdlib-add
     { 0 swap - } 'negate name)
+
   (forth-stdlib-add
     { dup 0 < if negate then } 'abs name)
 )
@@ -439,6 +446,7 @@ registers on the forth machine
 
 (defparameter *new-forth* (new-forth-interpreter))
 (go-forth *new-forth* 4 5 < if "hello" print then )
+
 ;; above compiles to
 (go-forth *new-forth*
   { branch-if "yes" "no" print } 'check-condition name immediate)
