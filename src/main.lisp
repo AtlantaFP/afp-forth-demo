@@ -14,7 +14,8 @@ registers on the forth machine
 - rstack : return stack (holds the instruction of the operation (i.e. forth word) to execute)
 - dict : dictionary of words
 - compiling :
-- dtable :
+- dtable : abstract register that maps a forth word to the list structure that created at the
+  time that forth was created.
 |#
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defparameter *logging-turned-on* nil)
@@ -379,6 +380,112 @@ registers on the forth machine
   (defun print-forth-thread (forth word)
     (let ((*print-circle* t))
       (print (get-forth-thread forth word))))
+
+  (defmacro assemble-flub (form rest)
+    `(if (gethash c go-ht)
+         (list* (gethash c go-ht)
+                ,form
+                ,rest)
+         (list* ,form ,rest)))
+
+  (defmacro flubify-aux ()
+    `(anaphoric-macros:alambda (c)
+       (if c
+           (cond
+             ((gethash (car c) prim-ht)
+              (assemble-flub
+               `(funcall
+                 ,(gethash (car c) prim-ht))
+               (anaphoric-macros:self (cdr c))))
+             ((gethash (car c) thread-ht)
+              (assemble-flub
+               `(funcall #',(car (gethash (car c) thread-ht)))
+               (anaphoric-macros:self (cdr c))))
+             ((eq (car c) branch-if)
+              (assemble-flub
+               `(if (pop pstack)
+                    (go ,(gethash (cadr c) go-ht)))
+               (anaphoric-macros:self (cddr c))))
+             ((consp (car c))
+              (flubify forth (car c) prim-ht thread-ht branch-if)
+              (anaphoric-macros:self c))
+             (t
+              (assemble-flub
+               `(push ',(car c) pstack)
+               (anaphoric-macros:self (cdr c))))))))
+
+  (defun flubify (forth thread prim-ht thread-ht branch-if)
+    (unless #1=(gethash thread thread-ht)
+            (setf #1# (list (gensym)))
+            (let ((go-ht (make-hash-table)))
+              (funcall
+               (anaphoric-macros:alambda (c)
+                 (when c
+                   (cond
+                     ((eq (car c) branch-if)
+                      (setf (gethash (cadr c) go-ht)
+                            (gensym))
+                      (anaphoric-macros:self (cddr c)))
+                     ((consp (car c))
+                      (flubify forth thread prim-ht thread-ht branch-if)))
+                   (anaphoric-macros:self (cdr c))))
+               thread)
+              (setf #1# (nconc #1# (funcall (flubify-aux) thread))))))
+
+  (defun compile-flubified (thread thread-ht)
+    `(labels (,@(let (collect)
+                  (maphash
+                   (lambda (k v)
+                     (declare (ignore k))
+                     (push
+                      `(,(car v) () (tagbody ,@(cdr v)))
+                      collect))
+                   thread-ht)
+                  (nreverse collect)))
+       (funcall #',(car (gethash thread thread-ht)))))
+
+  (defun flubify-thread-shaker (forth thread ht tmp-ht branch-if compile)
+    (if (gethash thread tmp-ht)
+        (return-from flubify-thread-shaker)
+        (setf (gethash thread tmp-ht) t))
+    (cond
+      ((and (consp thread) (eq (car thread) branch-if))
+       (if (cddr thread)
+           (flubify-thread-shaker forth (cddr thread) ht tmp-ht branch-if compile)))
+      ((and (consp thread) (eq (car thread) compile))
+       (error "Can't convert compiling word to lisp"))
+      ((consp thread)
+       (flubify-thread-shaker forth (car thread) ht tmp-ht branch-if compile)
+       (if (cdr thread)
+           (flubify-thread-shaker forth (cdr thread) ht tmp-ht branch-if compile)))
+      ((not (gethash thread ht))
+       (if (functionp thread)
+           (setf (gethash thread ht)
+                 (pandoric-macros:with-pandoric (dtable) forth
+                   (gethash thread dtable)))))))
+
+  (defun forth-to-lisp (forth word)
+    (let ((thread (get-forth-thread forth word))
+          (shaker-ht (make-hash-table))
+          (prim-ht (make-hash-table))
+          (thread-ht (make-hash-table))
+          (branch-if (get-forth-thread forth 'branch-if))
+          (compile (get-forth-thread forth 'compile)))
+      (flubify-thread-shaker forth thread shaker-ht (make-hash-table) branch-if compile)
+      (maphash (lambda (k v)
+                 (declare (ignore v))
+                 (setf (gethash k prim-ht) (gensym)))
+               shaker-ht)
+      (flubify forth thread prim-ht thread-ht branch-if)
+      `(let (pstack)
+         (let (,@(let (collect)
+                   (maphash (lambda (k v)
+                              (push `(,(gethash k prim-ht)
+                                      (lambda () ,@(butlast v)))
+                                    collect))
+                            shaker-ht)
+                   (nreverse collect)))
+           ,(compile-flubified thread thread-ht)))))
   )
 
 ;; clumsy way of using our forth interpreter (pre go-forth)
@@ -525,8 +632,15 @@ brackets we introduced earlier. below is an example
   then
   drop } 'countdown-for-teh-hax0rz name)
 
-(go-forth *new-forth* 5 countdown-for-teh-hax0rz)
+(go-forth *new-forth*
+  { 5 countdown-for-teh-hax0rz } 'countdown5 name)
 
+(go-forth *new-forth* 5 countdown-for-teh-hax0rz)
+(go-forth *new-forth* countdown5)
+
+(print (forth-to-lisp *new-forth* 'countdown-for-teh-hax0rz))
+(compile (forth-to-lisp *new-forth* 'countdown5))
+(compile 'countdown-5 (lambda () (forth-to-lisp *new-forth* 'countdown5)))
 ;; above compiles to
 ;; (go-forth *new-forth*
 ;;   { branch-if "yes" "no" print } 'check-condition name immediate)
@@ -550,12 +664,19 @@ brackets we introduced earlier. below is an example
   { 3 square print } 'square3 name)
 
 (print-forth-thread *new-forth* 'square3)
+(print (forth-to-lisp *new-forth* 'square3))
+
 
 ;; example of full recursion
 (go-forth *new-forth*
   { [ 'fact name ]
   dup 1 -
   dup 1 > if fact then * })
+
+(go-forth *new-forth*
+  { 5 fact print } 'fact5 name)
+
+(eval (forth-to-lisp *new-forth* 'fact5))
 
 (go-forth *new-forth* 5 fact print)
 
