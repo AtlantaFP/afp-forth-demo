@@ -370,7 +370,16 @@ registers on the forth machine
   (forth-stdlib-add
     { evenp if 0 else 1 then } 'mod2 name)
 
-  (defparameter *new-forth* (new-forth-interpreter)))
+  (defparameter *new-forth* (new-forth-interpreter))
+  (defun get-forth-thread (forth word)
+    (pandoric-macros:with-pandoric (dict) forth
+      (forth-word-thread
+       (forth-lookup word dict))))
+
+  (defun print-forth-thread (forth word)
+    (let ((*print-circle* t))
+      (print (get-forth-thread forth word))))
+  )
 
 ;; clumsy way of using our forth interpreter (pre go-forth)
 ;; forth code : 3 dup * print
@@ -536,10 +545,18 @@ brackets we introduced earlier. below is an example
   { dup * } 'square name
   { square square } 'quartic name)
 
-(pandoric-macros:with-pandoric (dict) *new-forth*
-  (forth-word-thread
-   (forth-lookup 'quartic dict)))
+(go-forth *new-forth*
+  { dup * } 'square name
+  { 3 square print } 'square3 name)
 
-(let ((*print-circle* t))
-  (print *)
-  t)
+(print-forth-thread *new-forth* 'square3)
+
+;; example of full recursion
+(go-forth *new-forth*
+  { [ 'fact name ]
+  dup 1 -
+  dup 1 > if fact then * })
+
+(go-forth *new-forth* 5 fact print)
+
+(print-forth-thread *new-forth* 'fact)
